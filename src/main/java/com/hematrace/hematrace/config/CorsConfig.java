@@ -20,7 +20,8 @@ public class CorsConfig implements WebMvcConfigurer {
             .allowedOrigins(
                 "http://localhost:4200", // Angular
                 "http://localhost:3000", // React
-                "http://localhost:8080"  // Backend lui-même
+                "http://localhost:8080", // Backend lui-même
+                "https://snazzy-gingersnap-37454c.netlify.app"
             )
             .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
             .allowedHeaders("*")
@@ -37,7 +38,8 @@ public class CorsConfig implements WebMvcConfigurer {
         configuration.setAllowedOrigins(Arrays.asList(
             "http://localhost:4200",
             "http://localhost:3000",
-            "http://localhost:8080"
+            "http://localhost:8080",
+            "https://snazzy-gingersnap-37454c.netlify.app"
         ));
         
         // Méthodes autorisées

@@ -17,7 +17,8 @@ public class WebConfig {
                         .allowedOrigins(
                             "http://localhost:4200",  // Angular
                             "http://localhost:3000",  // React
-                            "http://localhost:8080"   // Backend
+                            "http://localhost:8080",  // Backend
+                            "https://snazzy-gingersnap-37454c.netlify.app"
                         )
                         .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD")
                         .allowedHeaders("*")
