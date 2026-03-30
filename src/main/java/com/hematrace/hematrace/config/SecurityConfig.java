@@ -10,26 +10,25 @@ import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
 public class SecurityConfig {
-    
+
     private final CorsConfigurationSource corsConfigurationSource;
-    
-    // Injectez votre CorsConfigurationSource
+
     public SecurityConfig(CorsConfigurationSource corsConfigurationSource) {
         this.corsConfigurationSource = corsConfigurationSource;
     }
 
-    @SuppressWarnings("removal")
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .cors(cors -> cors.configurationSource(corsConfigurationSource)) // ← Utilise votre configuration
-            .csrf(csrf -> csrf.disable()) // Désactiver CSRF pour API REST
+            .cors(cors -> cors.configurationSource(corsConfigurationSource))
+            .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/h2-console/**").permitAll() // Accès libre à H2
-                .anyRequest().permitAll() // Tout est autorisé pour le moment
+                .requestMatchers("/h2-console/**").permitAll()
+                .requestMatchers("/api/auth/**").permitAll()
+                .anyRequest().permitAll()
             )
             .headers(headers -> headers
-                .frameOptions(frame -> frame.sameOrigin()) // H2 en iframe
+                .frameOptions(frame -> frame.sameOrigin())
             );
 
         return http.build();
