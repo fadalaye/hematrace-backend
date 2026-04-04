@@ -1,5 +1,6 @@
 package com.hematrace.hematrace.controller;
 
+import com.hematrace.hematrace.dto.CorrectionCliniqueTransfusionRequest;
 import com.hematrace.hematrace.dto.CreerTransfusionDTO;
 import com.hematrace.hematrace.dto.TransfusionWithSurveillancesDTO;
 import com.hematrace.hematrace.entite.Transfusion;
@@ -302,5 +303,13 @@ public ResponseEntity<Boolean> hasIncident(@PathVariable Long id) {
     @GetMapping("/health")
     public ResponseEntity<String> healthCheck() {
         return ResponseEntity.ok("API Transfusions est opérationnelle");
+    }
+
+
+    @PutMapping("/{id}/correction-clinique")
+    public ResponseEntity<Transfusion> corrigerCliniquement(
+            @PathVariable Long id,
+            @RequestBody CorrectionCliniqueTransfusionRequest request) {
+        return ResponseEntity.ok(transfusionService.corrigerCliniquement(id, request));
     }
 }

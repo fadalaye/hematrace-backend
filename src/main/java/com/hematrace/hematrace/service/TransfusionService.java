@@ -1,5 +1,6 @@
 package com.hematrace.hematrace.service;
 
+import com.hematrace.hematrace.dto.CorrectionCliniqueTransfusionRequest;
 import com.hematrace.hematrace.dto.CreerTransfusionDTO;
 import com.hematrace.hematrace.dto.TransfusionWithSurveillancesDTO;
 import com.hematrace.hematrace.entite.Transfusion;
@@ -79,5 +80,7 @@ public interface TransfusionService {
      * Récupère les transfusions compatibles pour déclarer un incident
      */
     List<Transfusion> getTransfusionsCompatiblesIncident();
-   
+
+    public Transfusion corrigerCliniquement(Long id, CorrectionCliniqueTransfusionRequest request);
+
 }

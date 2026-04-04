@@ -58,4 +58,7 @@ public interface DelivranceService {
 
     // Méthode pour vérifier si un produit est disponible
     boolean estProduitDisponible(Long produitId);
+
+    Delivrance modifierDelivranceComplete(Long id, List<Long> nouveauxProduitIds, String destination,
+            String modeTransport, String observations);
 }

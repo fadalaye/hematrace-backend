@@ -102,8 +102,8 @@ public interface DemandeRepository extends JpaRepository<Demande, Long>, JpaSpec
     List<Demande> findPendingDemandes();
     
     // Demandes validées
-    @Query("SELECT d FROM Demande d WHERE d.statut = 'VALIDE' ORDER BY d.dateHeureDemande DESC")
-    List<Demande> findValidatedDemandes();
+       @Query("SELECT d FROM Demande d WHERE d.statut = 'VALIDÉE' ORDER BY d.dateHeureDemande DESC")
+       List<Demande> findValidatedDemandes();
     
     // Demandes urgentes
     List<Demande> findByUrgenceTrue();
@@ -169,4 +169,13 @@ public interface DemandeRepository extends JpaRepository<Demande, Long>, JpaSpec
            "ORDER BY annee, mois")
     List<Object[]> countByMonth(@Param("start") LocalDateTime start,
                                @Param("end") LocalDateTime end);
+
+
+long countByUrgenceTrue();
+
+@Query("SELECT COUNT(d) FROM Demande d WHERE d.delivrance IS NOT NULL")
+long countDemandesAvecDelivrance();
+
+@Query("SELECT COUNT(d) FROM Demande d WHERE d.delivrance IS NULL AND UPPER(d.statut) = 'VALIDÉE'")
+long countDemandesValideesSansDelivrance();
 }

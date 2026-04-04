@@ -1,5 +1,6 @@
 package com.hematrace.hematrace.controller;
 
+import com.hematrace.hematrace.dto.ModifierDelivranceRequest;
 import com.hematrace.hematrace.entite.Delivrance;
 import com.hematrace.hematrace.entite.ProduitSanguin;
 import com.hematrace.hematrace.service.DelivranceService;
@@ -859,4 +860,20 @@ public ResponseEntity<?> estProduitDisponible(@PathVariable Long produitId) {
         private Map<String, Long> parPersonnel;
         private Map<String, Long> parMois;
     }
+
+    @PutMapping("/{id}/complete")
+public ResponseEntity<Delivrance> modifierComplete(
+        @PathVariable Long id,
+        @RequestBody ModifierDelivranceRequest request) {
+
+    Delivrance del = delivranceService.modifierDelivranceComplete(
+        id,
+        request.getProduitIds(),
+        request.getDestination(),
+        request.getModeTransport(),
+        request.getObservations()
+    );
+
+    return ResponseEntity.ok(del);
+}
 }

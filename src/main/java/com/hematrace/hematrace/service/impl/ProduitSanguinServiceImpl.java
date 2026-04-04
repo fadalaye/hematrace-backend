@@ -50,9 +50,9 @@ public class ProduitSanguinServiceImpl implements ProduitSanguinService {
         }
         
         // État par défaut
-        if (produitSanguin.getEtat() == null) {
-            produitSanguin.setEtat("disponible");
-        }
+    if (produitSanguin.getEtat() == null) {
+        produitSanguin.setEtat("DISPONIBLE");
+    }
         
         return produitSanguinRepository.save(produitSanguin);
     }
@@ -74,8 +74,10 @@ public class ProduitSanguinServiceImpl implements ProduitSanguinService {
         return produitsSauvegardes;
     }
 
+
     @Override
     public List<ProduitSanguin> getAllProduitsSanguins() {
+        verifierEtMarquerProduitsExpires();
         return produitSanguinRepository.findAll();
     }
 
@@ -146,8 +148,14 @@ public class ProduitSanguinServiceImpl implements ProduitSanguinService {
     public void marquerCommeExpire(Long produitId) {
         ProduitSanguin produit = produitSanguinRepository.findById(produitId)
             .orElseThrow(() -> new RuntimeException("Produit sanguin non trouvé"));
-        
-        produit.setEtat("PÉRIMÉ"); // Changé de "EXPIRÉ" à "PÉRIMÉ"
+
+        String etat = produit.getEtat();
+
+        if (etat != null && (etat.equalsIgnoreCase("UTILISÉ") || etat.equalsIgnoreCase("UTILISE"))) {
+            return;
+        }
+
+        produit.setEtat("PÉRIMÉ");
         produitSanguinRepository.save(produit);
     }
 
@@ -163,10 +171,17 @@ public class ProduitSanguinServiceImpl implements ProduitSanguinService {
     @Override
     public void verifierEtMarquerProduitsExpires() {
         LocalDate aujourdhui = LocalDate.now();
-        List<ProduitSanguin> produitsExpires = produitSanguinRepository.findByDatePeremptionBefore(aujourdhui);
-        
+        List<ProduitSanguin> produitsExpires = produitSanguinRepository.findByDatePeremptionLessThanEqual(aujourdhui);
+
         produitsExpires.forEach(produit -> {
-            if (!"PÉRIMÉ".equals(produit.getEtat())) { // Changé de "EXPIRÉ" à "PÉRIMÉ"
+            String etat = produit.getEtat();
+
+            if (etat != null
+                    && !etat.equalsIgnoreCase("UTILISÉ")
+                    && !etat.equalsIgnoreCase("UTILISE")
+                    && !etat.equalsIgnoreCase("PÉRIMÉ")
+                    && !etat.equalsIgnoreCase("PERIME")) {
+
                 produit.setEtat("PÉRIMÉ");
                 produitSanguinRepository.save(produit);
             }
@@ -213,6 +228,7 @@ public class ProduitSanguinServiceImpl implements ProduitSanguinService {
 
     @Override
     public List<ProduitSanguin> getProduitsSanguinsDisponibles() {
+        verifierEtMarquerProduitsExpires();
         return produitSanguinRepository.findDisponibles();
     }
 

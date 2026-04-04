@@ -196,4 +196,5 @@ long countByToleranceIgnoreCase(String tolerance);
 long countByEffetsIndesirablesTrue();
 List<Transfusion> findByEffetsIndesirablesTrue();
 
+List<Transfusion> findTop10ByOrderByDateTransfusionDesc();
 }

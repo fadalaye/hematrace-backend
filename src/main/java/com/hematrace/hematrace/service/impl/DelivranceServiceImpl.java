@@ -578,4 +578,58 @@ private boolean estProduitDisponibleParEtat(ProduitSanguin produit) {
     return "DÉLIVRÉ".equalsIgnoreCase(etat) 
         || "DISPONIBLE".equalsIgnoreCase(etat);
 }
+
+
+@Override
+@Transactional
+public Delivrance modifierDelivranceComplete(Long id,
+                                             List<Long> nouveauxProduitIds,
+                                             String destination,
+                                             String modeTransport,
+                                             String observations) {
+
+    Delivrance delivrance = delivranceRepository.findByIdWithDetails(id)
+        .orElseThrow(() -> new RuntimeException("Délivrance non trouvée"));
+
+    // 🔒 Vérifier si un produit est déjà transfusé
+    boolean contientProduitUtilise = delivrance.getProduitsSanguins().stream()
+        .anyMatch(p -> !estProduitDisponible(p.getId()));
+
+    if (contientProduitUtilise) {
+        throw new RuntimeException("Impossible de modifier : certains produits sont déjà transfusés");
+    }
+
+    // ========================
+    // 🔁 GESTION DES PRODUITS
+    // ========================
+
+    List<ProduitSanguin> anciensProduits = new ArrayList<>(delivrance.getProduitsSanguins());
+
+    // 1. Retirer les produits supprimés
+    for (ProduitSanguin ancien : anciensProduits) {
+        if (!nouveauxProduitIds.contains(ancien.getId())) {
+            retirerProduitDeDelivrance(delivrance.getId(), ancien.getId());
+        }
+    }
+
+    // 2. Ajouter les nouveaux produits
+    for (Long produitId : nouveauxProduitIds) {
+        boolean dejaPresent = delivrance.getProduitsSanguins().stream()
+            .anyMatch(p -> p.getId().equals(produitId));
+
+        if (!dejaPresent) {
+            ajouterProduitADelivrance(delivrance.getId(), produitId);
+        }
+    }
+
+    // ========================
+    // ✏️ AUTRES CHAMPS
+    // ========================
+
+    delivrance.setDestination(destination);
+    delivrance.setModeTransport(modeTransport);
+    delivrance.setObservations(observations);
+
+    return delivranceRepository.save(delivrance);
+}
 }

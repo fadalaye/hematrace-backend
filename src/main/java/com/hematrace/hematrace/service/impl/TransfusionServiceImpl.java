@@ -1,5 +1,6 @@
 package com.hematrace.hematrace.service.impl;
 
+import com.hematrace.hematrace.dto.CorrectionCliniqueTransfusionRequest;
 import com.hematrace.hematrace.dto.CreerTransfusionDTO;
 import com.hematrace.hematrace.dto.TransfusionWithSurveillancesDTO;
 import com.hematrace.hematrace.entite.*;
@@ -650,4 +651,21 @@ public class TransfusionServiceImpl implements TransfusionService {
             })
             .collect(Collectors.toList());
     }
+
+    public Transfusion corrigerCliniquement(Long id, CorrectionCliniqueTransfusionRequest request) {
+    Transfusion transfusion = transfusionRepository.findById(id)
+        .orElseThrow(() -> new RuntimeException("Transfusion introuvable"));
+
+    transfusion.setTolerance(request.getTolerance());
+    transfusion.setEtatPatientApres(request.getEtatPatientApres());
+    transfusion.setEffetsIndesirables(request.getEffetsIndesirables());
+    transfusion.setTypeEffet(request.getTypeEffet());
+    transfusion.setGraviteEffet(request.getGraviteEffet());
+    transfusion.setNotes(request.getNotes());
+
+    // remplacer / synchroniser les surveillances
+    // puis save
+
+    return transfusionRepository.save(transfusion);
+}
 }

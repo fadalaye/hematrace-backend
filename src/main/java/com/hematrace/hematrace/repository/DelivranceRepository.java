@@ -135,4 +135,6 @@ public interface DelivranceRepository extends JpaRepository<Delivrance, Long>, J
     // Délivrances sans observations
     @Query("SELECT d FROM Delivrance d WHERE d.observations IS NULL OR LENGTH(TRIM(d.observations)) = 0")
     List<Delivrance> findWithoutObservations();
+
+    List<Delivrance> findTop10ByOrderByDateHeureDelivranceDesc();
 }

@@ -203,8 +203,8 @@ public class DemandeServiceImpl implements DemandeService {
         Demande demande = demandeRepository.findById(demandeId)
             .orElseThrow(() -> new RuntimeException("Demande non trouvée"));
         
-        if ("LIVRÉE".equals(demande.getStatut())) {
-            throw new RuntimeException("Impossible d'annuler une demande déjà livrée");
+        if ("DÉLIVRÉE".equals(demande.getStatut())) {
+            throw new RuntimeException("Impossible d'annuler une demande déjà délivrée");
         }
         
         demande.setStatut("ANNULÉE");
@@ -343,7 +343,7 @@ public class DemandeServiceImpl implements DemandeService {
         stats.put("EN_ATTENTE", countDemandesByStatut("EN ATTENTE"));
         stats.put("VALIDEES", countDemandesByStatut("VALIDÉE"));
         stats.put("REJETEES", countDemandesByStatut("REJETÉE"));
-        stats.put("LIVREES", countDemandesByStatut("LIVRÉE"));
+        stats.put("DELIVREES", countDemandesByStatut("DÉLIVRÉE"));
         stats.put("ANNULEES", countDemandesByStatut("ANNULÉE"));
         stats.put("URGENTES", countDemandesUrgentes());
         

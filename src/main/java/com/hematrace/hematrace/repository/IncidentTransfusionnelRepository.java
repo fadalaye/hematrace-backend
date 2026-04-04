@@ -69,4 +69,6 @@ public interface IncidentTransfusionnelRepository extends JpaRepository<Incident
         long countByDateValidationIsNull();
     long countByDateValidationIsNotNull();
     long countByDateIncidentBetween(LocalDate start, LocalDate end);
+
+    
 }
