@@ -64,7 +64,7 @@ public class Utilisateur {
     @Column(name = "photo_profil", length = 255)
     private String photoProfil;
     
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 200)
     @NotBlank(message = "Le statut est obligatoire")
     private String statut;
 

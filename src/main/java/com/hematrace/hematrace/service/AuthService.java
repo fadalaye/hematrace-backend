@@ -44,17 +44,17 @@ public class AuthService {
         }
         
         // Cas 3: Compte inactif
-        if (!"ACTIF".equals(utilisateur.getStatut())) {
-            String statusMessage = switch (utilisateur.getStatut().toUpperCase()) {
+        if (!"ACTIF".equalsIgnoreCase(utilisateur.getStatut())) {
+            String status = utilisateur.getStatut() == null ? "" : utilisateur.getStatut().toUpperCase();
+
+            String statusMessage = switch (status) {
+                case "EN_ATTENTE_ACTIVATION" -> "Compte non activé. Vérifiez votre email d'activation.";
                 case "INACTIF" -> "Compte inactif. Veuillez contacter l'administrateur.";
                 case "SUSPENDU" -> "Compte suspendu. Veuillez contacter l'administrateur.";
                 case "BLOQUE" -> "Compte bloqué. Veuillez contacter l'administrateur.";
                 default -> "Compte " + utilisateur.getStatut().toLowerCase();
             };
-            
-            response.put("success", false);
-            response.put("message", statusMessage);
-            response.put("errorType", "OTHER");
+
             throw new RuntimeException(statusMessage);
         }
         

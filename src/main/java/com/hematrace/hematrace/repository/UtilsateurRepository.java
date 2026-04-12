@@ -27,4 +27,5 @@ public interface UtilsateurRepository extends JpaRepository<Utilisateur, Long> {
         return findByMatricule(identifiant)
                 .or(() -> findByEmail(identifiant));
     }
+    boolean existsByEmailIgnoreCase(String email);
 }
