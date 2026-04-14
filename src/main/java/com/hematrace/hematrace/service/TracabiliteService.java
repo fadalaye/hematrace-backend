@@ -709,56 +709,270 @@ public class TracabiliteService {
     
     // ========== CHAÎNE COMPLÈTE ==========
     
+    
+    // ========== CHAÎNE MÉTIER COMPLÈTE ==========
+
     @Transactional(readOnly = true)
     public List<TraceElementDTO> getEntityChain(String type, Long id) {
-        log.info("⛓️ Chaîne complète pour {}/{}", type, id);
-        
+        log.info("⛓️ Reconstruction de la chaîne métier pour {}/{}", type, id);
+
         try {
-            List<TraceElementDTO> chain = new ArrayList<>();
-            
-            // Étape 1: L'entité elle-même
-            TraceElementDTO entite = getEntiteByIdSafe(type, id);
-            if (entite != null) {
-                entite.setEtape(1);
-                entite.setDetails("Étape 1: " + type + " source");
-                chain.add(entite);
+            LinkedHashMap<String, TraceElementDTO> chainMap = new LinkedHashMap<>();
+            String normalizedType = normalizeTraceType(type);
+
+            switch (normalizedType) {
+                case "incident" -> buildChainFromIncident(id, chainMap);
+                case "transfusion" -> buildChainFromTransfusion(id, chainMap);
+                case "surveillance" -> buildChainFromSurveillance(id, chainMap);
+                case "produit" -> buildChainFromProduit(id, chainMap);
+                case "delivrance" -> buildChainFromDelivrance(id, chainMap);
+                case "demande" -> buildChainFromDemande(id, chainMap);
+                default -> {
+                    log.warn("⚠️ Type non pris en charge pour la chaîne métier: {}", type);
+                    TraceElementDTO entite = getEntiteByIdSafe(type, id);
+                    if (entite != null) {
+                        entite.setRelation("Élément source");
+                        chainMap.put(buildTraceKey(entite.getType(), entite.getId()), entite);
+                    }
+                }
             }
-            
-            // Étape 2: Les logs associés
-            List<TraceElementDTO> logs = getTraceLogsForEntitySafe(type, id);
-            for (int i = 0; i < logs.size(); i++) {
-                TraceElementDTO logElement = logs.get(i);
-                logElement.setEtape(i + 2);
-                logElement.setDetails("Étape " + (i + 2) + ": Activité enregistrée");
-                chain.add(logElement);
+
+            List<TraceElementDTO> chain = new ArrayList<>(chainMap.values());
+            for (int i = 0; i < chain.size(); i++) {
+                TraceElementDTO item = chain.get(i);
+                item.setEtape(i + 1);
+                if (item.getDetails() == null || item.getDetails().isBlank()) {
+                    item.setDetails("Étape " + (i + 1) + " de la chaîne métier");
+                }
             }
-            
-            log.info("✅ Chaîne récupérée: {} éléments", chain.size());
+
+            log.info("✅ Chaîne métier reconstruite: {} éléments", chain.size());
             return chain;
-            
+
         } catch (Exception e) {
             log.error("❌ Erreur dans getEntityChain pour {}/{}: {}", type, id, e.getMessage(), e);
             return getChainSimplifiee(type, id);
         }
     }
-    
+
+    private void buildChainFromIncident(Long incidentId, LinkedHashMap<String, TraceElementDTO> chainMap) {
+        incidentRepository.findById(incidentId).ifPresent(incident -> {
+            Transfusion transfusion = incident.getTransfusion();
+            ProduitSanguin produit = transfusion != null ? transfusion.getProduitSanguin() : null;
+            Delivrance delivrance = produit != null ? produit.getDelivrance() : null;
+            Demande demande = delivrance != null ? delivrance.getDemande() : null;
+
+            addDemandeNode(chainMap, demande, "Demande à l'origine du parcours");
+            addDelivranceNode(chainMap, delivrance, "Délivrance liée à la demande");
+            addProduitsForDelivrance(chainMap, delivrance, produit != null ? produit.getId() : null);
+            addTransfusionsForDelivrance(chainMap, delivrance, transfusion != null ? transfusion.getId() : null);
+            addTransfusionNode(chainMap, transfusion, "Transfusion concernée par l'incident", true);
+            addSurveillancesForTransfusion(chainMap, transfusion);
+            addIncidentNode(chainMap, incident, "Élément source : incident transfusionnel", true);
+        });
+    }
+
+    private void buildChainFromTransfusion(Long transfusionId, LinkedHashMap<String, TraceElementDTO> chainMap) {
+        transfusionRepository.findById(transfusionId).ifPresent(transfusion -> {
+            ProduitSanguin produit = transfusion.getProduitSanguin();
+            Delivrance delivrance = produit != null ? produit.getDelivrance() : null;
+            Demande demande = delivrance != null ? delivrance.getDemande() : null;
+
+            addDemandeNode(chainMap, demande, "Demande à l'origine du parcours");
+            addDelivranceNode(chainMap, delivrance, "Délivrance associée");
+            addProduitsForDelivrance(chainMap, delivrance, produit != null ? produit.getId() : null);
+            addTransfusionNode(chainMap, transfusion, "Élément source : transfusion", true);
+            addSurveillancesForTransfusion(chainMap, transfusion);
+            addIncidentNode(chainMap, transfusion.getIncidentTransfusionnel(), "Incident lié à la transfusion", false);
+        });
+    }
+
+    private void buildChainFromSurveillance(Long surveillanceId, LinkedHashMap<String, TraceElementDTO> chainMap) {
+        surveillanceRepository.findById(surveillanceId).ifPresent(surveillance -> {
+            Transfusion transfusion = surveillance.getTransfusion();
+            ProduitSanguin produit = transfusion != null ? transfusion.getProduitSanguin() : null;
+            Delivrance delivrance = produit != null ? produit.getDelivrance() : null;
+            Demande demande = delivrance != null ? delivrance.getDemande() : null;
+
+            addDemandeNode(chainMap, demande, "Demande à l'origine du parcours");
+            addDelivranceNode(chainMap, delivrance, "Délivrance associée");
+            addProduitsForDelivrance(chainMap, delivrance, produit != null ? produit.getId() : null);
+            addTransfusionNode(chainMap, transfusion, "Transfusion surveillée", false);
+            addSurveillancesForTransfusion(chainMap, transfusion, surveillanceId);
+            addIncidentNode(chainMap, transfusion != null ? transfusion.getIncidentTransfusionnel() : null, "Incident éventuellement lié", false);
+        });
+    }
+
+    private void buildChainFromProduit(Long produitId, LinkedHashMap<String, TraceElementDTO> chainMap) {
+        produitSanguinRepository.findById(produitId).ifPresent(produit -> {
+            Delivrance delivrance = produit.getDelivrance();
+            Demande demande = delivrance != null ? delivrance.getDemande() : null;
+            Transfusion transfusion = produit.getTransfusion();
+
+            addDemandeNode(chainMap, demande, "Demande à l'origine du parcours");
+            addDelivranceNode(chainMap, delivrance, "Délivrance contenant le produit");
+            addProduitsForDelivrance(chainMap, delivrance, produitId);
+            addTransfusionNode(chainMap, transfusion, "Transfusion du produit source", false);
+            addSurveillancesForTransfusion(chainMap, transfusion);
+            addIncidentNode(chainMap, transfusion != null ? transfusion.getIncidentTransfusionnel() : null, "Incident éventuellement lié", false);
+
+            TraceElementDTO produitNode = chainMap.get(buildTraceKey("produit", produitId));
+            if (produitNode != null) {
+                produitNode.setRelation("Élément source : produit sanguin");
+                produitNode.setDetails("Produit sélectionné dans la chaîne métier");
+            }
+        });
+    }
+
+    private void buildChainFromDelivrance(Long delivranceId, LinkedHashMap<String, TraceElementDTO> chainMap) {
+        delivranceRepository.findByIdWithDetails(delivranceId).ifPresent(delivrance -> {
+            addDemandeNode(chainMap, delivrance.getDemande(), "Demande à l'origine du parcours");
+            addDelivranceNode(chainMap, delivrance, "Élément source : délivrance");
+            addProduitsForDelivrance(chainMap, delivrance, null);
+            addTransfusionsForDelivrance(chainMap, delivrance, null);
+        });
+    }
+
+    private void buildChainFromDemande(Long demandeId, LinkedHashMap<String, TraceElementDTO> chainMap) {
+        demandeRepository.findByIdWithRelations(demandeId).ifPresent(demande -> {
+            addDemandeNode(chainMap, demande, "Élément source : demande");
+            Delivrance delivrance = demande.getDelivrance();
+            addDelivranceNode(chainMap, delivrance, "Délivrance issue de la demande");
+            addProduitsForDelivrance(chainMap, delivrance, null);
+            addTransfusionsForDelivrance(chainMap, delivrance, null);
+        });
+    }
+
+    private void addDemandeNode(LinkedHashMap<String, TraceElementDTO> chainMap, Demande demande, String relation) {
+        if (demande == null) return;
+        TraceElementDTO dto = mapDemandeToDTO(demande);
+        dto.setRelation(relation);
+        dto.setDetails("Début du parcours métier");
+        chainMap.putIfAbsent(buildTraceKey(dto.getType(), dto.getId()), dto);
+    }
+
+    private void addDelivranceNode(LinkedHashMap<String, TraceElementDTO> chainMap, Delivrance delivrance, String relation) {
+        if (delivrance == null) return;
+        TraceElementDTO dto = mapDelivranceToDTO(delivrance);
+        dto.setRelation(relation);
+        dto.setDetails("Étape de mise à disposition / délivrance");
+        chainMap.putIfAbsent(buildTraceKey(dto.getType(), dto.getId()), dto);
+    }
+
+    private void addProduitsForDelivrance(LinkedHashMap<String, TraceElementDTO> chainMap, Delivrance delivrance, Long highlightedProduitId) {
+        if (delivrance == null || delivrance.getProduitsSanguins() == null) return;
+
+        List<ProduitSanguin> produits = new ArrayList<>(delivrance.getProduitsSanguins());
+        produits.sort(Comparator.comparing(ProduitSanguin::getId));
+
+        for (ProduitSanguin produit : produits) {
+            TraceElementDTO dto = mapProduitToDTO(produit);
+            boolean highlighted = Objects.equals(produit.getId(), highlightedProduitId);
+            dto.setRelation(highlighted
+                    ? "Produit concerné dans cette chaîne"
+                    : "Autre produit délivré dans la même délivrance");
+            dto.setDetails(highlighted
+                    ? "Produit directement lié à l'élément source"
+                    : "Produit frère de la même délivrance");
+            chainMap.putIfAbsent(buildTraceKey(dto.getType(), dto.getId()), dto);
+        }
+    }
+
+    private void addTransfusionsForDelivrance(LinkedHashMap<String, TraceElementDTO> chainMap, Delivrance delivrance, Long highlightedTransfusionId) {
+        if (delivrance == null || delivrance.getId() == null) return;
+
+        List<Transfusion> transfusions = transfusionRepository.findByDelivranceId(delivrance.getId());
+        transfusions.sort(Comparator.comparing(Transfusion::getId));
+
+        for (Transfusion transfusion : transfusions) {
+            boolean highlighted = Objects.equals(transfusion.getId(), highlightedTransfusionId);
+            addTransfusionNode(chainMap, transfusion,
+                    highlighted ? "Transfusion concernée dans cette chaîne" : "Transfusion issue de cette délivrance",
+                    highlighted);
+
+            addSurveillancesForTransfusion(chainMap, transfusion);
+            addIncidentNode(chainMap, transfusion.getIncidentTransfusionnel(),
+                    highlighted ? "Incident lié à la transfusion source" : "Incident lié à cette transfusion",
+                    false);
+        }
+    }
+
+    private void addTransfusionNode(LinkedHashMap<String, TraceElementDTO> chainMap, Transfusion transfusion, String relation, boolean source) {
+        if (transfusion == null) return;
+        TraceElementDTO dto = mapTransfusionToDTO(transfusion);
+        dto.setRelation(relation);
+        dto.setDetails(source ? "Élément clé de la chaîne métier" : "Étape de réalisation de la transfusion");
+        chainMap.putIfAbsent(buildTraceKey(dto.getType(), dto.getId()), dto);
+    }
+
+    private void addSurveillancesForTransfusion(LinkedHashMap<String, TraceElementDTO> chainMap, Transfusion transfusion) {
+        addSurveillancesForTransfusion(chainMap, transfusion, null);
+    }
+
+    private void addSurveillancesForTransfusion(LinkedHashMap<String, TraceElementDTO> chainMap, Transfusion transfusion, Long highlightedSurveillanceId) {
+        if (transfusion == null || transfusion.getSurveillances() == null) return;
+
+        List<Surveillance> surveillances = new ArrayList<>(transfusion.getSurveillances());
+        surveillances.sort(Comparator.comparing(Surveillance::getId));
+
+        for (Surveillance surveillance : surveillances) {
+            TraceElementDTO dto = mapSurveillanceToDTO(surveillance);
+            boolean highlighted = Objects.equals(surveillance.getId(), highlightedSurveillanceId);
+            dto.setRelation(highlighted
+                    ? "Surveillance source dans la chaîne"
+                    : "Surveillance réalisée pendant la transfusion");
+            dto.setDetails(highlighted
+                    ? "Élément source : surveillance"
+                    : "Contrôle clinique rattaché à la transfusion");
+            chainMap.putIfAbsent(buildTraceKey(dto.getType(), dto.getId()), dto);
+        }
+    }
+
+    private void addIncidentNode(LinkedHashMap<String, TraceElementDTO> chainMap, IncidentTransfusionnel incident, String relation, boolean source) {
+        if (incident == null) return;
+        TraceElementDTO dto = mapIncidentToDTO(incident);
+        dto.setRelation(relation);
+        dto.setDetails(source ? "Élément source : incident transfusionnel" : "Événement indésirable lié à la transfusion");
+        chainMap.putIfAbsent(buildTraceKey(dto.getType(), dto.getId()), dto);
+    }
+
+    private String buildTraceKey(String type, Long id) {
+        return normalizeTraceType(type) + "-" + id;
+    }
+
+    private String normalizeTraceType(String type) {
+        if (type == null) return "";
+        String value = type.trim().toLowerCase();
+        return switch (value) {
+            case "produits", "produit-sanguin", "produitsanguin" -> "produit";
+            case "demandes" -> "demande";
+            case "delivrances" -> "delivrance";
+            case "transfusions" -> "transfusion";
+            case "incidents" -> "incident";
+            case "surveillances" -> "surveillance";
+            case "logs" -> "log";
+            default -> value;
+        };
+    }
+
     private List<TraceElementDTO> getChainSimplifiee(String type, Long id) {
         List<TraceElementDTO> chain = new ArrayList<>();
-        
+
         try {
-            // Étape 1: L'entité elle-même
             TraceElementDTO entite = getEntiteByIdSafe(type, id);
             if (entite != null) {
                 entite.setEtape(1);
-                entite.setDetails("Étape 1: " + type + " source");
+                entite.setRelation("Élément source");
+                entite.setDetails("Chaîne métier partielle - seules les informations de base sont disponibles");
                 chain.add(entite);
             }
         } catch (Exception e) {
             log.debug("Impossible d'ajouter l'entité à la chaîne simplifiée");
         }
-        
+
         return chain;
     }
+
     
     // ========== STATISTIQUES ==========
     
@@ -780,8 +994,8 @@ public class TracabiliteService {
             
             // Totaux par statut
             stats.put("produitsDisponibles", produitSanguinRepository.countByEtat("DISPONIBLE"));
-            stats.put("demandesEnAttente", demandeRepository.countByStatut("EN_ATTENTE"));
-            stats.put("demandesValidees", demandeRepository.countByStatut("VALIDE"));
+            stats.put("demandesEnAttente", demandeRepository.countByStatut("EN ATTENTE"));
+            stats.put("demandesValidees", demandeRepository.countByStatut("VALIDÉE"));
             stats.put("incidentsNonValides", incidentRepository.countByDateValidationIsNull());
             stats.put("incidentsValides", incidentRepository.countByDateValidationIsNotNull());
             
@@ -1159,12 +1373,13 @@ public class TracabiliteService {
         TraceElementDTO dto = new TraceElementDTO();
         
         try {
-            LocalDateTime dateTime = null;
-            if (surveillance.getHeure() != null) {
-                dateTime = LocalDate.now().atTime(surveillance.getHeure());
-            } else {
-                dateTime = LocalDateTime.now();
-            }
+            LocalDate dateReference = (surveillance.getTransfusion() != null && surveillance.getTransfusion().getDateTransfusion() != null)
+                ? surveillance.getTransfusion().getDateTransfusion()
+                : LocalDate.now();
+
+            LocalDateTime dateTime = surveillance.getHeure() != null
+                ? dateReference.atTime(surveillance.getHeure())
+                : dateReference.atStartOfDay();
             
             dto.setId(surveillance.getId());
             dto.setType("surveillance");
@@ -1448,7 +1663,7 @@ public class TracabiliteService {
             }
             
             // Trier par date
-            historique.sort(Comparator.comparing(TraceElementDTO::getDate).reversed());
+            historique.sort(Comparator.comparing(TraceElementDTO::getDate, Comparator.nullsLast(Comparator.naturalOrder())).reversed());
             
             return historique;
             

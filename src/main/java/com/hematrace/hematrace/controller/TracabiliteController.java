@@ -108,6 +108,7 @@ public class TracabiliteController {
     // ==================== CHAÎNE D'ENTITÉ ====================
     
     @GetMapping("/chain/{type}/{id}")
+
     public ResponseEntity<List<TraceElementDTO>> getEntityChain(
             @PathVariable String type,
             @PathVariable Long id) {
@@ -120,6 +121,20 @@ public class TracabiliteController {
         return ResponseEntity.ok(chain);
     }
     
+
+    @GetMapping("/chain-metier/{type}/{id}")
+    public ResponseEntity<List<TraceElementDTO>> getEntityBusinessChain(
+            @PathVariable String type,
+            @PathVariable Long id) {
+
+        log.info("🧬 Requête chaîne métier pour {}/{}", type, id);
+
+        List<TraceElementDTO> chain = tracabiliteService.getEntityChain(type, id);
+
+        log.info("✅ Chaîne métier récupérée: {} éléments", chain.size());
+        return ResponseEntity.ok(chain);
+    }
+
     // ==================== ACTIVITÉ RÉCENTE ====================
     
     @GetMapping("/recent-activity")
