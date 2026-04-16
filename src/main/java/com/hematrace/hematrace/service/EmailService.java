@@ -20,23 +20,14 @@ public class EmailService {
         message.setFrom(fromEmail);
         message.setTo(destinataire);
         message.setSubject("Activation de votre compte HemaTrace");
-        message.setText(
-                "Bonjour " + prenom + ",
-
-" +
-                "Un compte HemaTrace a été créé pour vous.
-" +
-                "Veuillez cliquer sur le lien suivant pour définir votre mot de passe et activer votre compte :
-
-" +
-                lienActivation + "
-
-" +
-                "Ce lien expire dans 24 heures.
-
-" +
-                "Si vous n'êtes pas concerné, veuillez contacter l'administrateur."
-        );
+message.setText(
+        "Bonjour " + prenom + ",\n\n" +
+        "Un compte HemaTrace a été créé pour vous.\n" +
+        "Veuillez cliquer sur le lien suivant pour définir votre mot de passe et activer votre compte :\n\n" +
+        lienActivation + "\n\n" +
+        "Ce lien expire dans 24 heures.\n\n" +
+        "Si vous n'êtes pas concerné, veuillez contacter l'administrateur."
+);
         mailSender.send(message);
     }
 }
